@@ -54,6 +54,8 @@ function display_schedules($atts)
         return "<p>Aucun horaire disponible</p>";
     }
 
+    // echo "<p>Debug: ID boutique = $shop_id</p>";
+
     // Construire l'ordre des jours (aujourd'hui en premier)
     $ordered_days = [];
     $found = false;
@@ -97,73 +99,80 @@ function display_schedules($atts)
             if ($next_opening) {
                 $opening_message = "<span class='schedules_status'>Ouvre</span> demain à <span class='schedules_time'>$next_opening</span>";
             } else {
-                $opening_message = "Fermé actuellement";
+                $opening_message = "Ouvert";
             }
         } else {
             $opening_message = "Fermé actuellement";
         }
     }
 
-    // Construire la liste des horaires
-    $schedule_list = "<details class='schedules'><summary class='schedules__summary'>$opening_message</summary><div>";
+    $template = $atts['template'] ?? '';
+    if ($template == "full") {
 
-    foreach ($ordered_days as $day_en => $day_fr) {
-        $date_obj = new DateTime("this $day_en");
-        $day_num = $date_obj->format('d'); // Jour du mois
+        // Construire la liste des horaires
+        $schedule_list = "<details class='schedules'><summary class='schedules__summary'>$opening_message</summary><div>";
 
-        // Vérifier si le jour est aujourd'hui
-        $is_today = ($day_en == $current_day) ? "<span class='schedule__day schedule__day--active'>$day_fr $day_num</span>" : "<span class='schedule__day'>$day_fr $day_num</span>";
+        foreach ($ordered_days as $day_en => $day_fr) {
+            $date_obj = new DateTime("this $day_en");
+            $day_num = $date_obj->format('d'); // Jour du mois
 
-        // Vérifier si le jour a des horaires ou non
-        if (!isset($schedules[$day_en]) || !is_array($schedules[$day_en])) {
-            $schedule_list .= "<div class='schedule__row'><span class='schedule__day'>$is_today</span><span>Fermé</span></div>";
-            continue;
+            // Vérifier si le jour est aujourd'hui
+            $is_today = ($day_en == $current_day) ? "<span class='schedule__day schedule__day--active'>$day_fr $day_num</span>" : "<span class='schedule__day'>$day_fr $day_num</span>";
+
+            // Vérifier si le jour a des horaires ou non
+            if (!isset($schedules[$day_en]) || !is_array($schedules[$day_en])) {
+                $schedule_list .= "<div class='schedule__row'><span class='schedule__day'>$is_today</span><span>Fermé</span></div>";
+                continue;
+            }
+
+            // Récupérer les horaires
+            $day_schedule = $schedules[$day_en];
+            $morning_start = format_hour($day_schedule['morning']['start'] ?? '');
+            $morning_end = format_hour($day_schedule['morning']['end'] ?? '');
+            $afternoon_start = format_hour($day_schedule['afternoon']['start'] ?? '');
+            $afternoon_end = format_hour($day_schedule['afternoon']['end'] ?? '');
+
+            $horaires = [];
+
+            if (!empty($morning_start) && !empty($morning_end)) {
+                $horaires[] = "$morning_start - $morning_end";
+            } elseif (!empty($morning_start)) {
+                $horaires[] = "$morning_start";
+            }
+
+            if (!empty($afternoon_start) && !empty($afternoon_end)) {
+                $horaires[] = "$afternoon_start - $afternoon_end";
+            } elseif (!empty($afternoon_end)) {
+                $horaires[] = "$afternoon_end";
+            }
+
+            // Gérer le cas où un horaire est unique (ex: juste "9h00" ou "19h00")
+            if (count($horaires) == 1) {
+                $horaires_str = $horaires[0];
+            } elseif (count($horaires) > 1) {
+                $horaires_str = implode(' / ', $horaires);
+            } else {
+                $horaires_str = "Fermé";
+            }
+
+            // Mettre en gras les horaires du jour actuel
+            $horaires_str = ($day_en == $current_day) ? "<div class='schedule__hours schedule__hours--active'>$horaires_str</div>" : "<div class='schedule__hours'>$horaires_str</div>";
+
+            // Gérer les coupures
+            if ($day_en === 'sunday' && strpos($horaires_str, ' / ') !== false) {
+                $horaires_str = str_replace(' / ', ' - ', $horaires_str);
+            }
+
+            $schedule_list .= "<div class='schedule__row'>$is_today $horaires_str</div>";
         }
 
-        // Récupérer les horaires
-        $day_schedule = $schedules[$day_en];
-        $morning_start = format_hour($day_schedule['morning']['start'] ?? '');
-        $morning_end = format_hour($day_schedule['morning']['end'] ?? '');
-        $afternoon_start = format_hour($day_schedule['afternoon']['start'] ?? '');
-        $afternoon_end = format_hour($day_schedule['afternoon']['end'] ?? '');
+        $schedule_list .= "</div></details>";
 
-        $horaires = [];
-
-        if (!empty($morning_start) && !empty($morning_end)) {
-            $horaires[] = "$morning_start - $morning_end";
-        } elseif (!empty($morning_start)) {
-            $horaires[] = "$morning_start";
-        }
-
-        if (!empty($afternoon_start) && !empty($afternoon_end)) {
-            $horaires[] = "$afternoon_start - $afternoon_end";
-        } elseif (!empty($afternoon_end)) {
-            $horaires[] = "$afternoon_end";
-        }
-
-        // Gérer le cas où un horaire est unique (ex: juste "9h00" ou "19h00")
-        if (count($horaires) == 1) {
-            $horaires_str = $horaires[0];
-        } elseif (count($horaires) > 1) {
-            $horaires_str = implode(' / ', $horaires);
-        } else {
-            $horaires_str = "Fermé";
-        }
-
-        // Mettre en gras les horaires du jour actuel
-        $horaires_str = ($day_en == $current_day) ? "<div class='schedule__hours schedule__hours--active'>$horaires_str</div>" : "<div class='schedule__hours'>$horaires_str</div>";
-
-        // Gérer les coupures
-        if ($day_en === 'sunday' && strpos($horaires_str, ' / ') !== false) {
-            $horaires_str = str_replace(' / ', ' - ', $horaires_str);
-        }
-
-        $schedule_list .= "<div class='schedule__row'>$is_today $horaires_str</div>";
+        return $schedule_list;
+        
+    } elseif ($template == "short") {
+        return $opening_message;
     }
-
-    $schedule_list .= "</div></details>";
-
-    return $schedule_list;
 }
 
 // Ajouter un shortcode pour afficher les horaires d'une boutique spécifique avec le jour actuel en premier
