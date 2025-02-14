@@ -178,6 +178,46 @@ function display_schedules($atts)
 // Ajouter un shortcode pour afficher les horaires d'une boutique spécifique avec le jour actuel en premier
 add_shortcode('schedules_current', 'display_schedules');
 
+// Function pour afficher le statut du centre commercial
+function display_mall_message()
+{
+    $schedules = get_field("schedules", "option");
+    if (!$schedules || !is_array($schedules)) {
+        return "<p>Aucun horaire disponible</p>";
+    }
+ 	
+    $days = [
+        'monday'    => 'Lundi',
+        'tuesday'   => 'Mardi',
+        'wednesday' => 'Mercredi',
+        'thursday'  => 'Jeudi',
+        'friday'    => 'Vendredi',
+        'saturday'  => 'Samedi',
+        'sunday'    => 'Dimanche'
+    ];
+
+    setlocale(LC_TIME, "fr_FR.UTF-8");
+    $current_day = strtolower(date('l')); // Jour (ex: "monday")
+    $now = date('H:i');
+    $closing_hour = '';
+
+    $today_schedule = $schedules[$current_day] ?? null;
+    if ($today_schedule && is_array($today_schedule)) {
+        $morning_end = format_hour($today_schedule['morning']['end'] ?? '');
+        $afternoon_end = format_hour($today_schedule['afternoon']['end'] ?? '');
+        $closing_hour = !empty($afternoon_end) ? $afternoon_end : $morning_end;
+    }
+
+    // Déterminer le message d'ouverture
+    if ($closing_hour && $now < $closing_hour) {
+        return "Ouvert · Jusqu'à $closing_hour";
+    } else {
+        return "Fermé actuellement";
+    }
+}
+// Ajouter un shortcode pour afficher le message du centre commercial
+add_shortcode('mall_message', 'display_mall_message');
+
 // Fonction pour enqueuer les styles css
 function schedules_styles()
 {
