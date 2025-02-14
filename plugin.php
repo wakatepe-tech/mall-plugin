@@ -99,7 +99,7 @@ function display_schedules($atts)
             if ($next_opening) {
                 $opening_message = "<span class='schedules_status'>Ouvre</span> demain à <span class='schedules_time'>$next_opening</span>";
             } else {
-                $opening_message = "Ouvert";
+                $opening_message = "Fermé actuellement";
             }
         } else {
             $opening_message = "Fermé actuellement";
@@ -169,7 +169,6 @@ function display_schedules($atts)
         $schedule_list .= "</div></details>";
 
         return $schedule_list;
-        
     } elseif ($template == "short") {
         return $opening_message;
     }
@@ -185,7 +184,7 @@ function display_mall_message()
     if (!$schedules || !is_array($schedules)) {
         return "<p>Aucun horaire disponible</p>";
     }
- 	
+
     $days = [
         'monday'    => 'Lundi',
         'tuesday'   => 'Mardi',
@@ -210,11 +209,18 @@ function display_mall_message()
 
     // Déterminer le message d'ouverture
     if ($closing_hour && $now < $closing_hour) {
-        return "Ouvert · Jusqu'à $closing_hour";
+        return '<span class="message">
+		<span class="message__text--accent">Ouvert </span>
+		<span class="message__text">· Jusqu\'à</span> 
+		<span class="message__text message__text--accent">$closing_hour</span>
+		</span>';
     } else {
-        return "Fermé actuellement";
+        return '<span class="message">
+					<span class="message__text message__text--accent">Fermé actuellement </span>
+               </span>';
     }
 }
+
 // Ajouter un shortcode pour afficher le message du centre commercial
 add_shortcode('mall_message', 'display_mall_message');
 
