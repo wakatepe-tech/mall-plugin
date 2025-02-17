@@ -209,11 +209,11 @@ function display_mall_message()
 
     // Déterminer le message d'ouverture
     if ($closing_hour && $now < $closing_hour) {
-        return '<span class="message">
-		<span class="message__text--accent">Ouvert </span>
-		<span class="message__text">· Jusqu\'à</span> 
-		<span class="message__text message__text--accent">$closing_hour</span>
-		</span>';
+        return "<span class='message'>
+		<span class='message__text--accent'>Ouvert </span>
+		<span class='message__text'>· Jusqu\'à</span> 
+		<span class='message__text message__text--accent'>$closing_hour</span>
+		</span>";
     } else {
         return '<span class="message">
 					<span class="message__text message__text--accent">Fermé actuellement </span>
