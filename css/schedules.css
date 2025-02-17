@@ -57,3 +57,30 @@ details[open] > summary::after {
         flex-direction: row;
     }
 }
+
+.shop-offers {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.shop-offer {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding: 10px;
+}
+
+.shop-offer img {
+    max-width: 100px;
+    height: auto;
+    display: block;
+    margin-bottom: 0;
+}
+
+.shop-offer p {
+    font-weight: 300;
+    margin: 10px 0;
+}

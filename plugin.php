@@ -205,6 +205,66 @@ function display_mall_message()
 
 add_shortcode('mall_message', 'display_mall_message');
 
+// Fonction pour récupérer les données des shops
+function get_shop_offers() {
+    $args = array(
+        'post_type' => 'offers',
+        'posts_per_page' => -1,
+    );
+    
+    $query = new WP_Query($args);
+    $shop_offers = array();
+
+    if ($query->have_posts()) {
+        while ($query->have_posts()) {
+            $query->the_post();
+            $shop_post = get_field('shop');
+            
+            if ($shop_post) {
+                $shop_name = get_the_title($shop_post->ID); 
+                $shop_logo = get_field('logo', $shop_post->ID); 
+ 
+				// Si le champ 'logo' est de type 'Image', nous devons récupérer l'ID de l'image
+                if ($shop_logo) {
+                    $shop_logo_id = $shop_logo['ID'];
+                } else {
+                    $shop_logo_id = '';
+                }
+				
+                // Vérifiez que les champs ne sont pas vides
+                if ($shop_name && $shop_logo_id) {
+                    $shop_offers[] = array(
+                        'name' => $shop_name,
+                        'logo' => $shop_logo_id
+                    );
+                }
+            }
+        }
+    }
+    wp_reset_postdata();
+
+    return $shop_offers;
+}
+
+// Fonction pour afficher les données des shops avec le shortcode :[shop_offers]
+function display_shop_offers() {
+    $shops = get_shop_offers();
+    $output = '<div class="shop-offers">';
+
+    foreach ($shops as $shop) {
+        if ($shop['logo']) {
+            $output .= '<div class="shop-offer">';
+            $output .=  wp_get_attachment_image($shop['logo'], 'medium');
+            $output .= '<p>' . esc_html($shop['name']) . '</p>';
+            $output .= '</div>';
+        }
+    }
+
+    $output .= '</div>';
+    return $output;
+}
+add_shortcode('shop_offers',  'display_shop_offers');
+
 function schedules_styles()
 {
     wp_enqueue_style('mall-schedules', plugins_url('css/schedules.css', __FILE__));
