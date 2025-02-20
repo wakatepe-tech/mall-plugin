@@ -8,120 +8,149 @@
  */
 
 if (!defined('ABSPATH')) {
-    exit; // Empêche l'accès direct
+    exit;
 }
 
-// Vérifier si ACF est actif avant d'utiliser ses fonctions
+/**
+ * Vérifier si ACF est actif avant d'utiliser ses fonctions
+ */
 if (!function_exists('get_field')) {
     return;
 }
 
-// Fonction pour formater les heures au format 9h00 au lieu de 0:00:00
+/**
+ * Formater une heure au format 9h00 au lieu de 0:00:00
+ */
 function format_hour($hour)
 {
     if (empty($hour)) return '';
-    $time = strtotime($hour);
-    return date('G\hi', $time);
+    return date('G\hi', strtotime($hour));
 }
 
-// Fonction pour afficher les horaires d'ouverture avec le jour actuel en premier 
-function display_schedules($atts)
-{
-    $shop_id = get_the_ID();
-    $is_mall = !$shop_id;
-    $template = $atts['template'] ?? 'mall';
-
-    if ($template === 'mall') {
-        $is_mall = true;
-    }
-
-    // Récupérer les horaires d'ouverture
+/**
+ * Fonction pour obtenir les horaires d'ouverture des boutiques et du centre commercial
+ */
+function get_opening_hours($is_mall, $shop_id) {
     $schedules = $is_mall ? get_field("schedules", "option") : get_field("schedules", $shop_id);
-
     if (!$schedules || !is_array($schedules)) {
-        return "<p>Aucun horaire disponible</p>";
+        return [];
     }
+    return $schedules;
+}
 
-    // Jours de la semaine en français
-    $days = [
-        'monday'    => 'Lundi',
-        'tuesday'   => 'Mardi',
-        'wednesday' => 'Mercredi',
-        'thursday'  => 'Jeudi',
-        'friday'    => 'Vendredi',
-        'saturday'  => 'Samedi',
-        'sunday'    => 'Dimanche'
-    ];
-
-    // Définir le jour actuel
+/**
+ * Fonction pour récupérer le jour actuel en français
+ */
+function get_current_day()
+{
     setlocale(LC_TIME, "fr_FR.UTF-8");
+    return strtolower(date('l'));
+}
+
+/**
+ * Fonction pour récupérer l'heure actuelle
+ */
+function get_current_time()
+{
+    return date('H:i');
+}
+
+function get_current_date()
+{
+    setlocale(LC_TIME, "fr_FR.UTF-8");
+    $date = new DateTime();
+    return $date->format('l d');
+}
+
+/**
+ * Obtenir la liste des jours de la semaine avec aujourd'hui en premier
+ */
+function get_ordered_days()
+{
+    $days = [
+        'monday' => 'Lundi',
+        'tuesday' => 'Mardi',
+        'wednesday' => 'Mercredi',
+        'thursday' => 'Jeudi',
+        'friday' => 'Vendredi',
+        'saturday' => 'Samedi',
+        'sunday' => 'Dimanche'
+    ];
     $current_day = strtolower(date('l'));
-    $now = date('H:i');
-
-    // Construire l'ordre des jours (aujourd'hui en premier)
-    $ordered_days = array_slice($days, array_search($current_day, array_keys($days)), null, true) +
+    return array_slice($days, array_search($current_day, array_keys($days)), null, true) +
         array_slice($days, 0, array_search($current_day, array_keys($days)), true);
+}
 
-    // Trouver l'heure de fermeture du jour actuel
-    $today_schedule = $schedules[$current_day] ?? null;
-    $closing_hour = '';
+/**
+ * Obtenir l'heure de fermeture du jour actuel
+ */
+function get_closing_hour($today_schedule)
+{
+    $morning_end = format_hour($today_schedule['morning']['end'] ?? '');
+    $afternoon_end = format_hour($today_schedule['afternoon']['end'] ?? '');
+    return !empty($afternoon_end) ? $afternoon_end : $morning_end;
+}
 
-    if ($today_schedule && is_array($today_schedule)) {
-        $morning_end = format_hour($today_schedule['morning']['end'] ?? '');
-        $afternoon_end = format_hour($today_schedule['afternoon']['end'] ?? '');
-        $closing_hour = !empty($afternoon_end) ? $afternoon_end : $morning_end;
-    }
 
-    // Déterminer le message d'ouverture
+/**
+ * Fonction pour générer le message d'ouverture
+ */
+function generate_opening_message($closing_hour, $now, $ordered_days, $schedules, $current_day)
+{
+    $current_date = get_current_date(); // Récupérer la date du jour
+
     if ($closing_hour && $now < $closing_hour) {
-        // Si l'heure actuelle est avant l'heure de fermeture
-        $opening_message = "<span class='schedules_status'>Ouvert</span> · Ferme à <span class='schedules_time'>$closing_hour</span>";
-    } else {
-        // Trouver le prochain jour ouvré
-        $found_next_day = false;
-        foreach ($ordered_days as $next_day_key => $next_day_fr) {
-            if ($next_day_key == $current_day) {
-                continue; // Sauter le jour actuel
-            }
-            if (isset($schedules[$next_day_key]) && is_array($schedules[$next_day_key])) {
-                $next_opening = format_hour($schedules[$next_day_key]['morning']['start'] ?? '');
-                if ($next_opening) {
-                    //                     echo "Le jour récupéré est : $next_day_fr"; // Ajout de l'echo pour vérifier le jour
-                    $opening_message = "<span class='schedules_status'>Ouvre demain</span> à <span class='schedules_time'>$next_opening</span>";
-                    $found_next_day = true;
-                    break;
-                }
-            }
-        }
+        return "<span class='schedules_status'>Ouvert</span> · Ferme à <span class='schedules_time'>$closing_hour</span><br><span class='schedules_date'>$current_date</span>";
+    }
 
-        if (!$found_next_day) {
-            $opening_message = "Fermé actuellement";
+    foreach ($ordered_days as $next_day_key => $next_day_fr) {
+        if ($next_day_key == $current_day) {
+            continue;
+        }
+        if (isset($schedules[$next_day_key]) && is_array($schedules[$next_day_key])) {
+            $next_opening = format_hour($schedules[$next_day_key]['morning']['start'] ?? '');
+            if ($next_opening) {
+                return "<span class='schedules_status'>Ouvre demain</span> à <span class='schedules_time'>$next_opening</span><br><span class='schedules_date'>$current_date</span>";
+            }
         }
     }
 
-    // Générer l'affichage selon le template
+    return "Fermé actuellement<br><span class='schedules_date'>$current_date</span>";
+}
+
+/**
+ * Fonction pour générer la liste des horaires du centre commercial et des boutiques
+ */
+function generate_schedule_list($template, $opening_message, $ordered_days, $current_day, $schedules)
+{
     if ($template === "mall") {
         $schedule_list = "<div class='schedule-wrapper'>
-                          <details class='schedules' open>
-                              <summary class='schedules__summary'>$opening_message</summary>
-                              <div class='schedule-container'>";
+        <details class='schedules' open>
+        <summary class='schedules__summary'>$opening_message</summary>
+        <div class='schedule-container'>";
+
     } elseif ($template === "full") {
         $schedule_list = "<div class='schedule-wrapper'>
-                          <details class='schedules'>
-                              <summary class='schedules__summary'>$opening_message</summary>
-                              <div class='schedule-container'>";
+        <details class='schedules'>
+        <summary class='schedules__summary'>$opening_message</summary>
+        <div class='schedule-container'>";
+
     } elseif ($template === "short") {
         return $opening_message;
+
     } else {
-        return "<p>Template inconnu</p>"; // Sécurité en cas de template inconnu
+        return "<p>Template inconnu</p>";
     }
 
-    // Liste des horaires par jour
+    $date = new DateTime();
     foreach ($ordered_days as $day_en => $day_fr) {
         $is_today = ($day_en == $current_day) ? "schedule__day schedule__day--active" : "schedule__day";
 
         if (!isset($schedules[$day_en]) || !is_array($schedules[$day_en])) {
-            $schedule_list .= "<div class='schedule__row'><span class='$is_today'>$day_fr</span><span>Fermé</span></div>";
+            $schedule_list .= "<div class='schedule__row'>
+            <span class='$is_today'>$day_fr " . $date->format('j') . "</span>
+            <span>Fermé</span></div>";
+            $date->modify('+1 day');
             continue;
         }
 
@@ -148,137 +177,143 @@ function display_schedules($atts)
         $horaires_str = !empty($horaires) ? implode(' / ', $horaires) : "Fermé";
         $horaires_str = ($day_en == $current_day) ? "<div class='schedule__hours schedule__hours--active'>$horaires_str</div>" : "<div class='schedule__hours'>$horaires_str</div>";
 
-        $schedule_list .= "<div class='schedule__row'>
-                           <span class='$is_today'>$day_fr</span>
-                           $horaires_str
-                           </div>";
+        $schedule_list .= "<div class='schedule__row'><span class='$is_today'>$day_fr " . $date->format('j') . "</span>$horaires_str</div>";
+        $date->modify('+1 day');
     }
 
-    // Fermeture des balises <details>
     $schedule_list .= "</div></details></div>";
     return $schedule_list;
 }
+/**
+ * Fonction principale pour afficher les horaires d'ouverture avec le jour actuel en premier
+ */
+function display_schedules($atts)
+{
+    $shop_id = get_the_ID();
+    $is_mall = !$shop_id;
+    $template = $atts['template'] ?? 'mall';
 
-add_shortcode('schedules_current', 'display_schedules');
+    if ($template === 'mall') {
+        $is_mall = true;
+    }
 
+    $schedules = get_opening_hours($is_mall, $shop_id);
 
+    if (!$schedules || !is_array($schedules)) {
+        return "<p>Aucun horaire disponible</p>";
+    }
+
+    $current_day = get_current_day();
+    $now = get_current_time();
+    $ordered_days = get_ordered_days();
+
+    $today_schedule = $schedules[$current_day] ?? null;
+    $closing_hour = get_closing_hour($today_schedule);
+
+    $opening_message = generate_opening_message($closing_hour, $now, $ordered_days, $schedules, $current_day);
+
+    return generate_schedule_list($template, $opening_message, $ordered_days, $current_day, $schedules);
+}
+
+/**
+ * Shortcode pour afficher les horaires du centre commercial [schedules_current template="mall"]
+ * Shortcode pour les horaires des boutiques [schedules_current template="full"]
+ * Shortcode pour afficher le message 'ouvert ou ouver demain [schedules_current template="short"]
+ */
 add_shortcode('schedules_current', 'display_schedules');
 
 /**
- * Affiche le statut du centre commercial (ouvert/fermé) et l'heure de fermeture.
- * Shortcode: [mall_message]
+ * Afficher le message de statut du centre commercial sur le bandeau de l'accueil
  */
-// Fonction pour afficher le statut du centre commercial
 function display_mall_message()
 {
+    $days = get_ordered_days();
+
     $schedules = get_field("schedules", "option");
     if (!$schedules || !is_array($schedules)) {
         return "<p>Aucun horaire disponible</p>";
     }
 
-    $days = [
-        'monday'    => 'Lundi',
-        'tuesday'   => 'Mardi',
-        'wednesday' => 'Mercredi',
-        'thursday'  => 'Jeudi',
-        'friday'    => 'Vendredi',
-        'saturday'  => 'Samedi',
-        'sunday'    => 'Dimanche'
-    ];
-    setlocale(LC_TIME, "fr_FR.UTF-8");
-    $current_day = strtolower(date('l')); // Jour (ex: "monday")
-    $now = date('H:i');
-    $closing_hour = '';
-    $today_schedule = $schedules[$current_day] ?? null;
-    if ($today_schedule && is_array($today_schedule)) {
-        $morning_end = format_hour($today_schedule['morning']['end'] ?? '');
-        $afternoon_end = format_hour($today_schedule['afternoon']['end'] ?? '');
-        $closing_hour = !empty($afternoon_end) ? $afternoon_end : $morning_end;
-    }
-    // Déterminer le message d'ouverture
+    $current_day = get_current_day();
+    $now = get_current_time();
+    $closing_hour = get_closing_hour($schedules[$current_day] ?? []);
+
     if ($closing_hour && $now < $closing_hour) {
-        return "Ouvert · Jusqu'à $closing_hour";
-    } else {
-        return "Fermé actuellement";
+        return "<span class='message'>
+        <span class='message__text--accent'>Ouvert </span>
+        <span class='message__text'>· Jusqu'à</span> 
+        <span class='message__text message__text--accent'>$closing_hour</span>
+        </span>";
     }
-}
 
-add_shortcode('mall_message', 'display_mall_message');
-
-// Fonction pour récupérer les données des shops
-function get_shop_offers() {
-    $args = array(
-        'post_type' => 'offers',
-        'posts_per_page' => -1,
-    );
-    
-    $query = new WP_Query($args);
-    $shop_offers = array();
-
-    if ($query->have_posts()) {
-        while ($query->have_posts()) {
-            $query->the_post();
-            $shop_post = get_field('shop');
-            
-            if ($shop_post) {
-                $shop_name = get_the_title($shop_post->ID); 
-                $shop_logo = get_field('logo', $shop_post->ID); 
- 
-				// Si le champ 'logo' est de type 'Image', nous devons récupérer l'ID de l'image
-                if ($shop_logo) {
-                    $shop_logo_id = $shop_logo['ID'];
-                } else {
-                    $shop_logo_id = '';
-                }
-				
-                // Vérifiez que les champs ne sont pas vides
-                if ($shop_name && $shop_logo_id) {
-                    $shop_offers[] = array(
-                        'name' => $shop_name,
-                        'logo' => $shop_logo_id
-                    );
-                }
+    foreach ($days as $next_day_key => $next_day_fr) {
+        if (isset($schedules[$next_day_key]) && is_array($schedules[$next_day_key])) {
+            $next_opening = format_hour($schedules[$next_day_key]['morning']['start'] ?? '');
+            if ($next_opening) {
+                return "<span class='message'>
+                <span class='message__text'> Ouvre demain à </span>
+                <span class='message__text message__text--accent'>$next_opening</span>
+                </span>";
             }
         }
     }
-    wp_reset_postdata();
-
-    return $shop_offers;
 }
 
-// Fonction pour afficher les données des shops avec le shortcode :[shop_offers]
-function display_shop_offers() {
-    $shops = get_shop_offers();
-    $output = '<div class="shop-offers">';
+/**
+ * Shortcode pour afficher le statut du centre commercial [mall_message]
+ */
+add_shortcode('mall_message', 'display_mall_message');
 
-    foreach ($shops as $shop) {
-        if ($shop['logo']) {
-            $output .= '<div class="shop-offer">';
-            $output .=  wp_get_attachment_image($shop['logo'], 'medium');
-            $output .= '<p>' . esc_html($shop['name']) . '</p>';
-            $output .= '</div>';
-        }
+/**
+ * Afficher les offres des magasins
+ */
+function display_shop_offers() {
+
+    $offer_fields = get_fields($post->ID); // Récupère tous les champs de l’Offer
+    $shop_object  = $offer_fields['shop']; // Il s’agit d’un WP_Post (Post Object ACF)
+     
+    if ( is_object($shop_object) ) {
+        // 1. Obtenir l'ID du shop
+        $shop_id = $shop_object->ID;
+		$shop_name = get_the_title($shop_id);
+        $shop_logo = get_field('logo', $shop_id);
+		$offer_title = get_the_title($post->ID);
+       		
+		$output = "<div class='shop'>";
+        $output .= "<div class='shop__image'>";
+        $output .= $shop_logo ? wp_get_attachment_image($shop_logo['ID'], 'full') : '';
+        $output .= "</div>";
+        $output .= "<div class='shop__content'>";
+        $output .= "<div class='shop__name'><p>" . esc_html($shop_name) . "</p></div>";
+        $output .= "<div class='shop__offer'><p>" . esc_html($offer_title) . "</p></div>";
+        $output .= "</div>";
+        $output .= "</div>";
+
+        return $output;
     }
 
-    $output .= '</div>';
-    return $output;
-}
+    echo "L'objet du shop n'est pas valide.<br>";
+    return ''; // Retourne une chaîne vide si aucun shop n'est trouvé
+	
+}       // 2. Afficher un champ natif du shop : son titre, par exemple
+//         echo 'Titre du Shop : ' . get_the_title($shop_id) . '<br/>';
+//     echo 'Image: ' . get_field("logo", $shop_id) . '<br/>';
+//     }
+
 add_shortcode('shop_offers',  'display_shop_offers');
 
-function schedules_styles()
-{
+
+function schedules_styles() {
     wp_enqueue_style('mall-schedules', plugins_url('css/schedules.css', __FILE__));
 }
 add_action('wp_enqueue_scripts', 'schedules_styles');
 
-function mp_activation_plugin()
-{
+function mp_activation_plugin() {
     // Code éventuel à l'activation
 }
 register_activation_hook(__FILE__, 'mp_activation_plugin');
 
-function mp_desactivation_plugin()
-{
+function mp_desactivation_plugin() {
     // Code éventuel à la désactivation
 }
 register_deactivation_hook(__FILE__, 'mp_desactivation_plugin');
