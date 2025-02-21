@@ -93,10 +93,6 @@ function get_closing_hour($today_schedule)
     return !empty($afternoon_end) ? $afternoon_end : $morning_end;
 }
 
-function nowDateTime() {
-    return new DateTime('now', new DateTimeZone('Europe/Paris')); 
-}
-
 function parseDateTime($hour) {
     $today = new DateTime('today', new DateTimeZone('Europe/Paris'));
     if (!empty($hour)) {
@@ -113,7 +109,7 @@ function parseDateTime($hour) {
 function generate_opening_message($closing_hour, $now, $ordered_days, $schedules, $current_day)
 {
     $current_date = get_current_date();
-    $nowDT = parseDateTime($now); 
+    $nowDT = parseDateTime(get_current_time()); 
     $closeDT = parseDateTime($closing_hour);
 
     if ($closeDT && $nowDT < $closeDT) {
