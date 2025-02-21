@@ -24,13 +24,14 @@ if (!function_exists('get_field')) {
 function format_hour($hour)
 {
     if (empty($hour)) return '';
-    return date('G\hi', strtotime($hour));
+    return date('H:i', strtotime($hour));
 }
 
 /**
  * Fonction pour obtenir les horaires d'ouverture des boutiques et du centre commercial
  */
-function get_opening_hours($is_mall, $shop_id) {
+function get_opening_hours($is_mall, $shop_id)
+{
     $schedules = $is_mall ? get_field("schedules", "option") : get_field("schedules", $shop_id);
     if (!$schedules || !is_array($schedules)) {
         return [];
@@ -52,14 +53,15 @@ function get_current_day()
  */
 function get_current_time()
 {
-    return date('H:i');
+    $date = new DateTime('now', new DateTimeZone('Europe/Paris'));
+    return $date->format('H:i');
 }
 
 function get_current_date()
 {
+    $date = new DateTime('now', new DateTimeZone('Europe/Paris'));
     setlocale(LC_TIME, "fr_FR.UTF-8");
-    $date = new DateTime();
-    return $date->format('l d F'); 
+    return strftime('%A %d %B', $date->getTimestamp());
 }
 
 /**
@@ -91,16 +93,31 @@ function get_closing_hour($today_schedule)
     return !empty($afternoon_end) ? $afternoon_end : $morning_end;
 }
 
+function nowDateTime() {
+    return new DateTime('now', new DateTimeZone('Europe/Paris')); 
+}
+
+function parseDateTime($hour) {
+    $today = new DateTime('today', new DateTimeZone('Europe/Paris'));
+    if (!empty($hour)) {
+        [$H,$i] = explode(':', date('H:i', strtotime($hour)));
+        $today->setTime($H, $i);
+        return $today;
+    }
+    return null;
+}
 
 /**
  * Fonction pour générer le message d'ouverture
  */
 function generate_opening_message($closing_hour, $now, $ordered_days, $schedules, $current_day)
 {
-    $current_date = get_current_date(); // Récupérer la date du jour
+    $current_date = get_current_date();
+    $nowDT = parseDateTime($now); 
+    $closeDT = parseDateTime($closing_hour);
 
-    if ($closing_hour && $now < $closing_hour) {
-        return "<span class='schedules_status'>Ouvert</span> · Ferme à <span class='schedules_time'>$closing_hour</span><br><span class='schedules_date'></span>";
+    if ($closeDT && $nowDT < $closeDT) {
+        return "<span class='schedules__status'>Ouvert</span> · Ferme à <span class='schedules__time'>$closing_hour</span>";
     }
 
     foreach ($ordered_days as $next_day_key => $next_day_fr) {
@@ -110,12 +127,12 @@ function generate_opening_message($closing_hour, $now, $ordered_days, $schedules
         if (isset($schedules[$next_day_key]) && is_array($schedules[$next_day_key])) {
             $next_opening = format_hour($schedules[$next_day_key]['morning']['start'] ?? '');
             if ($next_opening) {
-                return "<span class='schedules_status'>Ouvre demain</span> à <span class='schedules_time'>$next_opening</span><br><span class='schedules_date'></span>";
+                return "<span class='schedules__status'>Ouvre demain</span> à <span class='schedules__time'>$next_opening</span>";
             }
         }
     }
 
-    return "Fermé actuellement<br><span class='schedules_date'></span>";
+    return "Fermé actuellement";
 }
 
 
@@ -154,8 +171,8 @@ function generate_schedule_list($template, $opening_message, $ordered_days, $cur
 
         if (!isset($schedules[$day_en]) || !is_array($schedules[$day_en])) {
             $schedule_list .= "<div class='schedule__row'>
-            <span class='$is_today'>$day_display</span>
-            <span>Fermé</span></div>";
+            <div class='$is_today'>$day_display</div>
+            <div>Fermé</div></div>";
             continue;
         }
 
@@ -182,7 +199,7 @@ function generate_schedule_list($template, $opening_message, $ordered_days, $cur
         $horaires_str = !empty($horaires) ? implode(' / ', $horaires) : "Fermé";
         $horaires_str = ($day_en == $current_day) ? "<div class='schedule__hours schedule__hours--active'>$horaires_str</div>" : "<div class='schedule__hours'>$horaires_str</div>";
 
-        $schedule_list .= "<div class='schedule__row'><span class='$is_today'>$day_display</span>$horaires_str</div>";
+        $schedule_list .= "<div class='schedule__row'><div class='$is_today'>$day_display</div>$horaires_str</div>";
     }
 
     $schedule_list .= "</div></details></div>";
@@ -239,12 +256,12 @@ function display_mall_message()
     }
 
     $current_day = get_current_day();
-    $now = get_current_time();
-    $closing_hour = get_closing_hour($schedules[$current_day] ?? []);
+    $nowDT = parseDateTime(get_current_time()); 
+    $closeDT = parseDateTime(get_closing_hour($schedules[$current_day] ?? []));
 
-    if ($closing_hour && $now < $closing_hour) {
+    if ($closeDT && $nowDT < $closeDT) {
         return "<span class='message'>
-        <span class='message__text--accent'>Ouvert </span>
+        <span class='message__text message__text--accent'>Ouvert </span>
         <span class='message__text'>· Jusqu'à</span> 
         <span class='message__text message__text--accent'>$closing_hour</span>
         </span>";
@@ -273,37 +290,32 @@ add_shortcode('mall_message', 'display_mall_message');
  */
 function display_shop_offers() {
 
-    $offer_fields = get_fields($post->ID); // Récupère tous les champs de l’Offer
-    $shop_object  = $offer_fields['shop']; // Il s’agit d’un WP_Post (Post Object ACF)
+    $offer_fields = get_fields($post->ID);
+    $shop_object  = $offer_fields['shop']; 
      
     if ( is_object($shop_object) ) {
-        // 1. Obtenir l'ID du shop
         $shop_id = $shop_object->ID;
 		$shop_name = get_the_title($shop_id);
         $shop_logo = get_field('logo', $shop_id);
 		$offer_title = get_the_title($post->ID);
        		
-		$output = "<div class='shop'>";
-        $output .= "<div class='shop__image'>";
+		$output = "<div class='offerShop'>";
+        $output .= "<div class='offerShop__image'>";
         $output .= $shop_logo ? wp_get_attachment_image($shop_logo['ID'], 'full') : '';
         $output .= "</div>";
-        $output .= "<div class='shop__content'>";
-        $output .= "<div class='shop__name'><p>" . esc_html($shop_name) . "</p></div>";
-        $output .= "<div class='shop__offer'><p>" . esc_html($offer_title) . "</p></div>";
+        $output .= "<div class='offerShop__content'>";
+        $output .= "<div class='offerShop__name'><p>" . esc_html($shop_name) . "</p></div>";
+        $output .= "<div class='offerShop__offer'><p>" . esc_html($offer_title) . "</p></div>";
         $output .= "</div>";
         $output .= "</div>";
 
         return $output;
     }
 
-    echo "L'objet du shop n'est pas valide.<br>";
-    return ''; // Retourne une chaîne vide si aucun shop n'est trouvé
+    echo "L'objet du shop n'est pas valide.";
+    return ''; 
 	
-}       // 2. Afficher un champ natif du shop : son titre, par exemple
-//         echo 'Titre du Shop : ' . get_the_title($shop_id) . '<br/>';
-//     echo 'Image: ' . get_field("logo", $shop_id) . '<br/>';
-//     }
-
+} 
 add_shortcode('shop_offers',  'display_shop_offers');
 
 

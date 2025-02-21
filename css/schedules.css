@@ -11,11 +11,15 @@
     list-style: none;
 }
 
+summary::-webkit-details-marker {
+    display: none;
+  }
+
 summary::after {
-    content: "▶";
+    content: url("data:image/svg+xml;charset=utf-8,%3Csvg%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M10%2016L14%2012L10%208%22%20stroke%3D%22currentColor%22%20stroke-width%3D%221.5%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3C/path%3E%3C/svg%3E");
     display: inline-block;
     transition: transform 0.3s;
-    margin-left: 14px;
+    vertical-align: middle;
 }
 
 details[open] > summary::after {
@@ -33,9 +37,11 @@ details[open] > summary::after {
 .schedule__row {
     display: flex; 
     font-size: 14px;
+    justify-content: space-between;
 }
 
 .schedule__day {
+    text-transform: capitalize;
     min-width: 100px;
 }
 
@@ -58,29 +64,31 @@ details[open] > summary::after {
     }
 }
 
-.shop-offers {
+.message__text.message__text--accent {
+    font-weight: 600;
+}
+
+
+.offerShop {
     display: flex;
-    flex-direction: row;
+    justify-content: flex-start;
     gap: 20px;
-    flex-wrap: wrap;
 }
 
-.shop-offer {
-    display: flex;
+.offerShop__image {
+    width: 30%
+}
+
+.offerShop__content {
+    flex-direction: column;
+    align-content: center;
     align-items: center;
-    gap: 15px;
-    margin-bottom: 20px;
-    padding: 10px;
 }
 
-.shop-offer img {
-    max-width: 100px;
-    height: auto;
-    display: block;
-    margin-bottom: 0;
+.offerShop__name {
+    font-weight: 600;
+    color: var( --e-global-color-primary );
 }
-
-.shop-offer p {
-    font-weight: 300;
-    margin: 10px 0;
+.offerShop__offer {
+    color: var( --e-global-color-primary );
 }
