@@ -59,7 +59,7 @@ function get_current_date()
 {
     setlocale(LC_TIME, "fr_FR.UTF-8");
     $date = new DateTime();
-    return $date->format('l d');
+    return $date->format('l d F'); 
 }
 
 /**
@@ -100,7 +100,7 @@ function generate_opening_message($closing_hour, $now, $ordered_days, $schedules
     $current_date = get_current_date(); // Récupérer la date du jour
 
     if ($closing_hour && $now < $closing_hour) {
-        return "<span class='schedules_status'>Ouvert</span> · Ferme à <span class='schedules_time'>$closing_hour</span><br><span class='schedules_date'>$current_date</span>";
+        return "<span class='schedules_status'>Ouvert</span> · Ferme à <span class='schedules_time'>$closing_hour</span><br><span class='schedules_date'></span>";
     }
 
     foreach ($ordered_days as $next_day_key => $next_day_fr) {
@@ -110,12 +110,12 @@ function generate_opening_message($closing_hour, $now, $ordered_days, $schedules
         if (isset($schedules[$next_day_key]) && is_array($schedules[$next_day_key])) {
             $next_opening = format_hour($schedules[$next_day_key]['morning']['start'] ?? '');
             if ($next_opening) {
-                return "<span class='schedules_status'>Ouvre demain</span> à <span class='schedules_time'>$next_opening</span><br><span class='schedules_date'>$current_date</span>";
+                return "<span class='schedules_status'>Ouvre demain</span> à <span class='schedules_time'>$next_opening</span><br><span class='schedules_date'></span>";
             }
         }
     }
 
-    return "Fermé actuellement<br><span class='schedules_date'>$current_date</span>";
+    return "Fermé actuellement<br><span class='schedules_date'></span>";
 }
 
 /**
@@ -145,14 +145,21 @@ function generate_schedule_list($template, $opening_message, $ordered_days, $cur
     $date = new DateTime();
     foreach ($ordered_days as $day_en => $day_fr) {
         $is_today = ($day_en == $current_day) ? "schedule__day schedule__day--active" : "schedule__day";
+       
+        if ($day_en == $current_day) {
+            $day_display = $date->format('l j F'); // Affiche le mois uniquement pour aujourd'hui
+        } else {
+            $day_display = $date->format('l j'); // Affiche seulement le jour et le numéro pour les autres jours
+        }
 
         if (!isset($schedules[$day_en]) || !is_array($schedules[$day_en])) {
             $schedule_list .= "<div class='schedule__row'>
-            <span class='$is_today'>$day_fr " . $date->format('j') . "</span>
+            <span class='$is_today'>$day_display</span>
             <span>Fermé</span></div>";
             $date->modify('+1 day');
             continue;
         }
+
 
         $day_schedule = $schedules[$day_en];
         $morning_start = format_hour($day_schedule['morning']['start'] ?? '');
@@ -177,13 +184,14 @@ function generate_schedule_list($template, $opening_message, $ordered_days, $cur
         $horaires_str = !empty($horaires) ? implode(' / ', $horaires) : "Fermé";
         $horaires_str = ($day_en == $current_day) ? "<div class='schedule__hours schedule__hours--active'>$horaires_str</div>" : "<div class='schedule__hours'>$horaires_str</div>";
 
-        $schedule_list .= "<div class='schedule__row'><span class='$is_today'>$day_fr " . $date->format('j') . "</span>$horaires_str</div>";
+        $schedule_list .= "<div class='schedule__row'><span class='$is_today'>$day_display</span>$horaires_str</div>";
         $date->modify('+1 day');
     }
 
     $schedule_list .= "</div></details></div>";
     return $schedule_list;
 }
+
 /**
  * Fonction principale pour afficher les horaires d'ouverture avec le jour actuel en premier
  */
