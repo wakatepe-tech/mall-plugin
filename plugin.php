@@ -314,15 +314,15 @@ function display_mall_message()
     $current_day  = get_current_day();
     $now          = get_current_time();
     $statusInfo   = get_schedule_status($schedules, $days, $current_day, $now);
-    $message_html = get_resume_message($statusInfo);
+    $resume_message = get_resume_message($statusInfo);
 
-    return "<span class='message'>{$message_html}</span>";
+    return "<span class='message'>{$resume_message}</span>";
 }
 
 add_shortcode('mall_message', 'display_mall_message');
 
 /**
- * Affiche le le shop associé à l'offre
+ * Affiche le shop associé à l'offre
  */
 function display_shop_offers() {
     global $post;
@@ -352,23 +352,17 @@ function display_shop_offers() {
 }
 add_shortcode('shop_offers',  'display_shop_offers');
 
-/* ------------------------------------------------------------------------
-   ENQUEUE DU CSS
------------------------------------------------------------------------- */
 function schedules_styles() {
     wp_enqueue_style('mall-schedules', plugins_url('css/schedules.css', __FILE__));
 }
 add_action('wp_enqueue_scripts', 'schedules_styles');
 
-/* ------------------------------------------------------------------------
-   HOOKS D’ACTIVATION / DESACTIVATION (optionnel)
------------------------------------------------------------------------- */
 function mp_activation_plugin() {
-    // Code éventuel à l'activation
+
 }
 register_activation_hook(__FILE__, 'mp_activation_plugin');
 
 function mp_desactivation_plugin() {
-    // Code éventuel à la désactivation
+
 }
 register_deactivation_hook(__FILE__, 'mp_desactivation_plugin');
