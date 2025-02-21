@@ -252,8 +252,9 @@ function display_mall_message()
     }
 
     $current_day = get_current_day();
+    $closing_hour = get_closing_hour($schedules[$current_day] ?? []);
     $nowDT = parseDateTime(get_current_time()); 
-    $closeDT = parseDateTime(get_closing_hour($schedules[$current_day] ?? []));
+    $closeDT = parseDateTime($closing_hour);
 
     if ($closeDT && $nowDT < $closeDT) {
         return "<span class='message'>
