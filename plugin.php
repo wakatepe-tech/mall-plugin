@@ -42,7 +42,7 @@ function get_opening_hours($is_mall, $shop_id)
 }
 
 /**
- * Fonction pour récupérer le jour actuel en français (ex: "monday")
+ * Fonction pour récupérer le jour actuel en français
  */
 function get_current_day()
 {
@@ -84,7 +84,7 @@ function get_ordered_days()
 }
 
 /**
- * Obtenir l'heure de fermeture du jour actuel (priorité à l'après-midi s'il existe)
+ * Obtenir l'heure de fermeture du jour actuel
  */
 function get_closing_hour($today_schedule)
 {
@@ -94,9 +94,10 @@ function get_closing_hour($today_schedule)
 }
 
 /**
- * Parse une heure "H:i" en objet DateTime (pour comparaison ultérieure)
+ * Parse une heure "H:i" en objet DateTime
  */
-function parseDateTime($hour) {
+function parseDateTime($hour)
+{
     $today = new DateTime('today', new DateTimeZone('Europe/Paris'));
     if (!empty($hour)) {
         [$H,$i] = explode(':', date('H:i', strtotime($hour)));
@@ -167,7 +168,7 @@ function get_schedule_status($schedules, $ordered_days, $current_day, $now)
  * @param array $scheduleInfo  Ex : ['status'=>'open','hour'=>'19:00']
  * @return string HTML
  */
-function get_resume_message($scheduleInfo)
+function render_resume_message($scheduleInfo)
 {
     $status = $scheduleInfo['status'];
     $hour   = $scheduleInfo['hour'];
@@ -299,7 +300,7 @@ function display_schedules($atts)
     $ordered_days  = get_ordered_days();
 
     $statusInfo     = get_schedule_status($schedules, $ordered_days, $current_day, $now);
-    $resume_message = get_resume_message($statusInfo);
+    $resume_message = render_resume_message($statusInfo);
 
     return render_schedules($template, $resume_message, $ordered_days, $current_day, $schedules);
 }
