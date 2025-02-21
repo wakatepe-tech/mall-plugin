@@ -164,8 +164,9 @@ function get_schedule_status($schedules, $ordered_days, $current_day, $now)
 }
 
 /**
- * Retourne un message selon le statut ('open', 'tomorrow', 'closed')
+ * Génère un message selon le statut ('open', 'tomorrow', 'closed')
  * @param array $scheduleInfo  Ex : ['status'=>'open','hour'=>'19:00']
+ * 
  * @return string HTML
  */
 function render_resume_message($scheduleInfo)
@@ -307,6 +308,10 @@ function display_schedules($atts)
 
 add_shortcode('schedules', 'display_schedules');
 
+/**
+ * Shortcode PostObject : [offer_shop]
+ * Affiche le shop associé à l'offre
+ */
 function display_offer_shop()
 {
     global $post;
@@ -319,17 +324,17 @@ function display_offer_shop()
         $shop_logo   = get_field('logo', $shop_id);
         $offer_title = get_the_title($post->ID);
 
-        $output  = "<div class='offerShop'>";
-        $output .= "<div class='offerShop__image'>";
-        $output .= $shop_logo ? wp_get_attachment_image($shop_logo['ID'], 'full') : '';
-        $output .= "</div>";
-        $output .= "<div class='offerShop__content'>";
-        $output .= "<div class='offerShop__name'><p>" . esc_html($shop_name) . "</p></div>";
-        $output .= "<div class='offerShop__offer'><p>" . esc_html($offer_title) . "</p></div>";
-        $output .= "</div>";
-        $output .= "</div>";
+        $offerShop  = "<div class='offerShop'>";
+        $offerShop .= "<div class='offerShop__image'>";
+        $offerShop .= $shop_logo ? wp_get_attachment_image($shop_logo['ID'], 'full') : '';
+        $offerShop .= "</div>";
+        $offerShop .= "<div class='offerShop__content'>";
+        $offerShop .= "<div class='offerShop__name'><p>" . esc_html($shop_name) . "</p></div>";
+        $offerShop .= "<div class='offerShop__offer'><p>" . esc_html($offer_title) . "</p></div>";
+        $offerShop .= "</div>";
+        $offerShop .= "</div>";
 
-        return $output;
+        return $offerShop;
     }
 
     return ''; 
