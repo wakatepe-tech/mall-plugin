@@ -47,7 +47,8 @@ function get_opening_hours($is_mall, $shop_id)
 function get_current_day()
 {
     setlocale(LC_TIME, "fr_FR.UTF-8");
-    return strtolower(date('l'));
+    $day = new DateTime('now', new DateTimeZone('Europe/Paris'));
+    return strtolower($day->format('l'));
 }
 
 /**
@@ -94,6 +95,15 @@ function get_closing_hour($today_schedule)
 }
 
 /**
+ * Obtenir d'ouv de fermeture du jour actuel
+ */
+function get_opening_hour($today_schedule)
+{
+    $morning_start   = format_hour($today_schedule['morning']['start'] ?? '');
+    $afternoon_start = format_hour($today_schedule['afternoon']['start'] ?? '');
+    return !empty($afternoon_start) ? $afternoon_start : $morning_start;
+}
+/**
  * Parse une heure "H:i" en objet DateTime
  */
 function parseDateTime($hour)
@@ -108,7 +118,7 @@ function parseDateTime($hour)
 }
 
 /**
- * Renvoie le statut d'ouverture (ouvert / fermé / ouvre demain) et l'heure associée
+ * Renvoie le statut d'ouverture (ouvert / ouvre demain / fermé) et l'heure associée
  *
  * @param array  $schedules     Horaires (tel que renvoyé par get_opening_hours())
  * @param array  $ordered_days  Jours ordonnés (ex. ['monday'=>'Lundi', ...])
@@ -116,8 +126,8 @@ function parseDateTime($hour)
  * @param string $now           Heure courante "H:i"
  * @return array
  *     [
- *       'status' => 'open' | 'tomorrow' | 'closed',
- *       'hour'   => heure de fermeture (si open) OU prochaine ouverture (si tomorrow)
+ *       'status' => 'open' | 'later' | 'closed',
+ *       'hour'   => heure de fermeture (si open) OU prochaine ouverture (si later)
  *     ]
  */
 function get_schedule_status($schedules, $ordered_days, $current_day, $now)
@@ -128,12 +138,14 @@ function get_schedule_status($schedules, $ordered_days, $current_day, $now)
 
     $today_schedule = $schedules[$current_day] ?? null;
     $closing_hour   = get_closing_hour($today_schedule);
+    $opening_hour   = get_opening_hour($today_schedule);
 
     $nowDT   = parseDateTime($now);
     $closeDT = parseDateTime($closing_hour);
+    $openDT = parseDateTime($opening_hour);
 
     // 1) S'il est encore ouvert
-    if ($closeDT && $nowDT < $closeDT) {
+    if ($nowDT > $openDT && $nowDT < $closeDT) {
         return [
             'status' => 'open',
             'hour'   => $closing_hour
@@ -149,7 +161,7 @@ function get_schedule_status($schedules, $ordered_days, $current_day, $now)
             $next_opening = format_hour($schedules[$day_en]['morning']['start'] ?? '');
             if ($next_opening) {
                 return [
-                    'status' => 'tomorrow',
+                    'status' => 'later',
                     'hour'   => $next_opening
                 ];
             }
@@ -164,7 +176,7 @@ function get_schedule_status($schedules, $ordered_days, $current_day, $now)
 }
 
 /**
- * Génère un message selon le statut ('open', 'tomorrow', 'closed')
+ * Génère un message selon le statut ('open', 'later', 'closed')
  * @param array $scheduleInfo  Ex : ['status'=>'open','hour'=>'19:00']
  * 
  * @return string HTML
@@ -182,7 +194,7 @@ function render_resume_message($scheduleInfo)
                 <span class='schedules__time'>{$hour}</span>
             ";
 
-        case 'tomorrow':
+        case 'later':
             return "
                 <span class='schedules__status'>Ouvre demain</span>
                 <span class='schedules__label'> à </span>
@@ -212,7 +224,7 @@ function render_schedules($template, $resume_message, $ordered_days, $current_da
 {
     setlocale(LC_TIME, 'fr_FR.UTF-8');
 
-    if ($template === 'message') {
+    if ($template === 'mall_short' || $template === 'shop_short') {
         return "<span class='message'>{$resume_message}</span>";
     }
 
@@ -275,20 +287,28 @@ function render_schedules($template, $resume_message, $ordered_days, $current_da
 }
 
 /**
- * Shortcode principal : [schedules template="mall|shop|message"]
- * - mall    : horaires du centre commercial + détails
- * - shop    : horaires d’une boutique + détails
- * - message : message qui indique le status du centre commercial
+ * Shortcode principal : [schedules template="mall|shop|mall_short|shop_short"]
+ * - mall       : horaires du centre commercial + détails
+ * - shop       : horaires d’une boutique + détails
+ * - mall_short : horaires du centre commercial
+ * _ shop_short : horaires d’une boutique + détails
  */
 function display_schedules($atts)
 {
     $template = $atts['template'] ?? 'mall';
     $shop_id  = get_the_ID();
 
-    if ($template === 'mall' || $template === 'message') {
-        $is_mall = true;
-    } else {
-        $is_mall = false;
+    switch ($template) {
+        case 'mall':
+        case 'mall_short':
+            $is_mall = true;
+            break;
+
+        case 'shop':
+        case 'shop_short':
+        default:
+            $is_mall = false;
+            break;
     }
 
     $schedules = get_opening_hours($is_mall, $shop_id);
