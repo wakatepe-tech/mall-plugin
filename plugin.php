@@ -118,11 +118,15 @@ function generate_opening_message($closing_hour, $now, $ordered_days, $schedules
     return "Fermé actuellement<br><span class='schedules_date'></span>";
 }
 
+
+
 /**
  * Fonction pour générer la liste des horaires du centre commercial et des boutiques
  */
 function generate_schedule_list($template, $opening_message, $ordered_days, $current_day, $schedules)
 {
+    setlocale(LC_TIME, 'fr_FR.UTF-8');
+    
     if ($template === "mall") {
         $schedule_list = "<div class='schedule-wrapper'>
         <details class='schedules' open>
@@ -145,21 +149,15 @@ function generate_schedule_list($template, $opening_message, $ordered_days, $cur
     $date = new DateTime();
     foreach ($ordered_days as $day_en => $day_fr) {
         $is_today = ($day_en == $current_day) ? "schedule__day schedule__day--active" : "schedule__day";
-       
-        if ($day_en == $current_day) {
-            $day_display = $date->format('l j F'); // Affiche le mois uniquement pour aujourd'hui
-        } else {
-            $day_display = $date->format('l j'); // Affiche seulement le jour et le numéro pour les autres jours
-        }
+        
+        $day_display = ($day_en == $current_day) ? strftime('%A %d %B') : strftime('%A %d', strtotime("next $day_en"));
 
         if (!isset($schedules[$day_en]) || !is_array($schedules[$day_en])) {
             $schedule_list .= "<div class='schedule__row'>
             <span class='$is_today'>$day_display</span>
             <span>Fermé</span></div>";
-            $date->modify('+1 day');
             continue;
         }
-
 
         $day_schedule = $schedules[$day_en];
         $morning_start = format_hour($day_schedule['morning']['start'] ?? '');
@@ -185,13 +183,11 @@ function generate_schedule_list($template, $opening_message, $ordered_days, $cur
         $horaires_str = ($day_en == $current_day) ? "<div class='schedule__hours schedule__hours--active'>$horaires_str</div>" : "<div class='schedule__hours'>$horaires_str</div>";
 
         $schedule_list .= "<div class='schedule__row'><span class='$is_today'>$day_display</span>$horaires_str</div>";
-        $date->modify('+1 day');
     }
 
     $schedule_list .= "</div></details></div>";
-    return $schedule_list;
+	return $schedule_list;
 }
-
 /**
  * Fonction principale pour afficher les horaires d'ouverture avec le jour actuel en premier
  */
