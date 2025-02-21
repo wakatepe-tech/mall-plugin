@@ -32,6 +32,8 @@ function format_hour($hour)
  */
 function get_opening_hours($is_mall, $shop_id)
 {
+    // Si is_mall = true => récupère depuis get_field("schedules","option")
+    // Sinon, pour une boutique, get_field("schedules", $shop_id)
     $schedules = $is_mall ? get_field("schedules", "option") : get_field("schedules", $shop_id);
     if (!$schedules || !is_array($schedules)) {
         return [];
@@ -40,7 +42,7 @@ function get_opening_hours($is_mall, $shop_id)
 }
 
 /**
- * Fonction pour récupérer le jour actuel en français
+ * Fonction pour récupérer le jour actuel en français (ex: "monday")
  */
 function get_current_day()
 {
@@ -76,12 +78,13 @@ function get_ordered_days()
     $keys        = array_keys($days);
     $current_pos = array_search($current_day, $keys);
 
+    // Réordonne le tableau en commençant par le jour actuel
     return array_slice($days, $current_pos, null, true)
          + array_slice($days, 0, $current_pos, true);
 }
 
 /**
- * Obtenir l'heure de fermeture du jour actuel
+ * Obtenir l'heure de fermeture du jour actuel (priorité à l'après-midi s'il existe)
  */
 function get_closing_hour($today_schedule)
 {
@@ -91,7 +94,7 @@ function get_closing_hour($today_schedule)
 }
 
 /**
- * Parse une heure "H:i" en objet DateTime (pour comparaison)
+ * Parse une heure "H:i" en objet DateTime (pour comparaison ultérieure)
  */
 function parseDateTime($hour) {
     $today = new DateTime('today', new DateTimeZone('Europe/Paris'));
@@ -102,7 +105,6 @@ function parseDateTime($hour) {
     }
     return null;
 }
-
 
 /**
  * Renvoie le statut d'ouverture (ouvert / fermé / ouvre demain) et l'heure associée
@@ -129,6 +131,7 @@ function get_schedule_status($schedules, $ordered_days, $current_day, $now)
     $nowDT   = parseDateTime($now);
     $closeDT = parseDateTime($closing_hour);
 
+    // 1) S'il est encore ouvert
     if ($closeDT && $nowDT < $closeDT) {
         return [
             'status' => 'open',
@@ -136,6 +139,7 @@ function get_schedule_status($schedules, $ordered_days, $current_day, $now)
         ];
     }
 
+    // 2) Sinon, chercher la prochaine ouverture (demain matin)
     foreach ($ordered_days as $day_en => $day_fr) {
         if ($day_en === $current_day) {
             continue;
@@ -151,6 +155,7 @@ function get_schedule_status($schedules, $ordered_days, $current_day, $now)
         }
     }
 
+    // 3) Fermé sinon
     return [
         'status' => 'closed',
         'hour'   => ''
@@ -191,28 +196,27 @@ function get_resume_message($scheduleInfo)
 }
 
 /**
- * Génère la liste des horaires + le résumé (ouvert / ferme...) au-dessus
+ * Génère la liste des horaires + le résumé (ouvert / fermé...) au-dessus
  *
- * @param string $template        "mall", "full" ou "short"
+ * @param string $template       "mall", "shop" ou "message"
  * @param string $resume_message Le texte affiché comme résumé (HTML)
- * @param array  $ordered_days    Jours ordonnés
- * @param string $current_day     Jour actuel en anglais
- * @param array  $schedules       Tableau associatif des horaires
+ * @param array  $ordered_days   Jours ordonnés
+ * @param string $current_day    Jour actuel en anglais
+ * @param array  $schedules      Tableau associatif des horaires
  *
- * @return string HTML complet
+ * @return string HTML
  */
-function generate_schedule_list($template, $resume_message, $ordered_days, $current_day, $schedules)
+function render_schedules($template, $resume_message, $ordered_days, $current_day, $schedules)
 {
     setlocale(LC_TIME, 'fr_FR.UTF-8');
 
-    if ($template === 'short') {
-        return $resume_message;
+    if ($template === 'message') {
+        return "<span class='message'>{$resume_message}</span>";
     }
 
-    if (!in_array($template, ['mall', 'full'], true)) {
+    if (!in_array($template, ['mall', 'shop'], true)) {
         return '<p>Template inconnu</p>';
     }
-
     $details_open = ($template === 'mall') ? ' open' : '';
 
     $schedule_list  = "<div class='schedule-wrapper'>\n";
@@ -221,7 +225,6 @@ function generate_schedule_list($template, $resume_message, $ordered_days, $curr
     $schedule_list .= "    <div class='schedule-container'>\n";
 
     foreach ($ordered_days as $day_en => $day_fr) {
-    
         $timestamp  = ($day_en === $current_day) ? time() : strtotime("next $day_en");
         $format_str = ($day_en === $current_day) ? '%A %d %B' : '%A %d';
 
@@ -269,18 +272,22 @@ function generate_schedule_list($template, $resume_message, $ordered_days, $curr
     return $schedule_list;
 }
 
-
 /**
- * Shortcode principal : [schedules_current template="mall|full|short"]
- * - mall : horaires du centre commercial + détails
- * - full : horaires d’une boutique + détails
- * - short : juste le message "Ouvert / Fermé / Ouvre demain"
+ * Shortcode principal : [schedules template="mall|shop|message"]
+ * - mall    : horaires du centre commercial + détails
+ * - shop    : horaires d’une boutique + détails
+ * - message : message qui indique le status du centre commercial
  */
 function display_schedules($atts)
 {
     $template = $atts['template'] ?? 'mall';
-    $shop_id = get_the_ID();
-    $is_mall = ($template === 'mall');
+    $shop_id  = get_the_ID();
+
+    if ($template === 'mall' || $template === 'message') {
+        $is_mall = true;
+    } else {
+        $is_mall = false;
+    }
 
     $schedules = get_opening_hours($is_mall, $shop_id);
     if (!$schedules || !is_array($schedules)) {
@@ -291,48 +298,24 @@ function display_schedules($atts)
     $now           = get_current_time();
     $ordered_days  = get_ordered_days();
 
-    $statusInfo = get_schedule_status($schedules, $ordered_days, $current_day, $now);
+    $statusInfo     = get_schedule_status($schedules, $ordered_days, $current_day, $now);
     $resume_message = get_resume_message($statusInfo);
 
-    return generate_schedule_list($template, $resume_message, $ordered_days, $current_day, $schedules);
+    return render_schedules($template, $resume_message, $ordered_days, $current_day, $schedules);
 }
 
-add_shortcode('schedules_current', 'display_schedules');
+add_shortcode('schedules', 'display_schedules');
 
-
-/**
- * Affiche le message de statut du centre commercial sur le bandeau de l'accueil
- */
-function display_mall_message()
+function display_offer_shop()
 {
-    $schedules = get_field("schedules", "option");
-    if (!$schedules || !is_array($schedules)) {
-        return "<p>Aucun horaire disponible</p>";
-    }
-
-    $days         = get_ordered_days();
-    $current_day  = get_current_day();
-    $now          = get_current_time();
-    $statusInfo   = get_schedule_status($schedules, $days, $current_day, $now);
-    $resume_message = get_resume_message($statusInfo);
-
-    return "<span class='message'>{$resume_message}</span>";
-}
-
-add_shortcode('mall_message', 'display_mall_message');
-
-/**
- * Affiche le shop associé à l'offre
- */
-function display_shop_offers() {
     global $post;
     $offer_fields = get_fields($post->ID);
     $shop_object  = $offer_fields['shop']; 
 
     if (is_object($shop_object)) {
-        $shop_id    = $shop_object->ID;
-        $shop_name  = get_the_title($shop_id);
-        $shop_logo  = get_field('logo', $shop_id);
+        $shop_id     = $shop_object->ID;
+        $shop_name   = get_the_title($shop_id);
+        $shop_logo   = get_field('logo', $shop_id);
         $offer_title = get_the_title($post->ID);
 
         $output  = "<div class='offerShop'>";
@@ -350,7 +333,7 @@ function display_shop_offers() {
 
     return ''; 
 }
-add_shortcode('shop_offers',  'display_shop_offers');
+add_shortcode('offer_shop',  'display_offer_shop');
 
 function schedules_styles() {
     wp_enqueue_style('mall-schedules', plugins_url('css/schedules.css', __FILE__));
@@ -358,11 +341,9 @@ function schedules_styles() {
 add_action('wp_enqueue_scripts', 'schedules_styles');
 
 function mp_activation_plugin() {
-
 }
 register_activation_hook(__FILE__, 'mp_activation_plugin');
 
 function mp_desactivation_plugin() {
-
 }
 register_deactivation_hook(__FILE__, 'mp_desactivation_plugin');
