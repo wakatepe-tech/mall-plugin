@@ -25,16 +25,15 @@ class OfferShop
         $shop_id     = $shop_object->ID;
         $shop_name   = get_the_title($shop_id);
         $shop_logo   = get_field('logo', $shop_id);
+        $shop_logo   = $shop_logo ? wp_get_attachment_image($shop_logo['ID'], 'full') : '';
         $offer_title = get_the_title($post->ID);
 
-        $offerShop  = "<div class='offerShop'>";
-        $offerShop .= "  <div class='offerShop__image'>";
-        $offerShop .=     $shop_logo ? wp_get_attachment_image($shop_logo['ID'], 'full') : '';
-        $offerShop .= "  </div>";
-        $offerShop .= "  <div class='offerShop__content'>";
-        $offerShop .= "    <div class='offerShop__name'><p>" . esc_html($shop_name) . "</p></div>";
-        $offerShop .= "    <div class='offerShop__offer'><p>" . esc_html($offer_title) . "</p></div>";
-        $offerShop .= "  </div>";
+        $offerShop  = "<div class='offerShop'>\n";
+        $offerShop .= "  <div class='offerShop__image'>{$shop_logo}</div>\n";
+        $offerShop .= "  <div class='offerShop__content'>\n";
+        $offerShop .= "    <div class='offerShop__name'>{$shop_name}</div>\n";
+        $offerShop .= "    <div class='offerShop__offer'>{$offer_title}</div>\n";
+        $offerShop .= "  </div>\n";
         $offerShop .= "</div>";
 
         return $offerShop;
