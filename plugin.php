@@ -21,7 +21,7 @@ if (!function_exists('get_field')) {
 /**
  * Formater une heure au format 9h00 au lieu de 0:00:00
  */
-function format_hour($hour)
+function format_hour(string $hour)
 {
     if (empty($hour)) return '';
     return date('H:i', strtotime($hour));
@@ -30,10 +30,8 @@ function format_hour($hour)
 /**
  * Fonction pour obtenir les horaires d'ouverture des boutiques et du centre commercial
  */
-function get_opening_hours($is_mall, $shop_id)
+function get_opening_hours(bool $is_mall, int $shop_id)
 {
-    // Si is_mall = true => récupère depuis get_field("schedules","option")
-    // Sinon, pour une boutique, get_field("schedules", $shop_id)
     $schedules = $is_mall ? get_field("schedules", "option") : get_field("schedules", $shop_id);
     if (!$schedules || !is_array($schedules)) {
         return [];
@@ -86,19 +84,9 @@ function get_ordered_days()
 }
 
 /**
- * Obtenir l'heure de fermeture du jour actuel
- */
-function get_closing_hour($today_schedule)
-{
-    $morning_end   = format_hour($today_schedule['morning']['end'] ?? '');
-    $afternoon_end = format_hour($today_schedule['afternoon']['end'] ?? '');
-    return !empty($afternoon_end) ? $afternoon_end : $morning_end;
-}
-
-/**
  * Obtenir l'heure d'ouverture du jour actuel
  */
-function get_opening_hour($today_schedule)
+function get_opening_hour(array $today_schedule)
 {
     $morning_start   = format_hour($today_schedule['morning']['start'] ?? '');
     $afternoon_start = format_hour($today_schedule['afternoon']['start'] ?? '');
@@ -106,84 +94,134 @@ function get_opening_hour($today_schedule)
 }
 
 /**
- * Convertit "H:i" en DateTime(aujourd'hui) (Europe/Paris)
+ * Convertit "H:i" en DateTime(aujourd'hui)
  */
-function parseDateTime($hour)
+function parseDateTime(string $hour)
 {
     $today = new DateTime('today', new DateTimeZone('Europe/Paris'));
     if (!empty($hour)) {
-        [$H,$i] = explode(':', date('H:i', strtotime($hour)));
-        $today->setTime($H, $i);
+        [$H, $i] = explode(':', date('H:i', strtotime($hour)));
+        if ($H == 0 && $i == 0) {
+            $today->setTime(0, 0);
+            $today->modify('+1 day');
+        } else {
+            $today->setTime($H, $i);
+        }
         return $today;
     }
     return null;
 }
 
 /**
- * Renvoie le statut d'ouverture (ouvert / plus tard / fermé) et l'heure associée
- *
- * @param array  $schedules     Horaires (tel que renvoyé par get_opening_hours())
- * @param array  $ordered_days  Jours ordonnés (ex. ['monday'=>'Lundi', ...])
- * @param string $current_day   Jour actuel en anglais
- * @param string $now           Heure courante "H:i"
- * @return array
- *     [
- *       'status' => 'open' | 'later' | 'closed',
- *       'hour'   => heure de fermeture (si open) OU prochaine ouverture (si later)
- *     ]
- */
-function get_schedule_status($schedules, $ordered_days, $current_day, $now)
+* Détermine le statut d'ouverture
+* en retournant un tableau [ 'status' => 'open|later|tomorrow|closed', 'hour' => 'xx:xx' ]
+*/
+function get_schedule_status(array $schedules, array $ordered_days, string $current_day, string $now)
 {
-    if (empty($schedules) || !is_array($schedules)) {
-        return ['status' => 'closed', 'hour' => ''];
-    }
 
-    $today_schedule = $schedules[$current_day] ?? null;
-    $closing_hour   = get_closing_hour($today_schedule);
-    $opening_hour   = get_opening_hour($today_schedule);
+   if (empty($schedules) || !is_array($schedules)) {
+       return ['status' => 'closed', 'hour' => ''];
+   }
 
-    $nowDT   = parseDateTime($now);
-    $closeDT = parseDateTime($closing_hour);
-    $openDT  = parseDateTime($opening_hour);
+   $today_schedule = $schedules[$current_day] ?? null;
+   if (!$today_schedule || !is_array($today_schedule)) {
+       $next_opening = find_next_day_opening($schedules, $ordered_days, $current_day);
+       return ['status' => 'tomorrow', 'hour' => $next_opening ?: ''];
+   }
 
-    // 1) S'il est encore ouvert (après openDT et avant closeDT)
-    if ($openDT && $closeDT && $nowDT >= $openDT && $nowDT < $closeDT) {
-        return [
-            'status' => 'open',
-            'hour'   => $closing_hour
-        ];
-    }
+   $ms = parseDateTime($today_schedule['morning']['start']   ?? null); 
+   $me = parseDateTime($today_schedule['morning']['end']     ?? null);
+   $as = parseDateTime($today_schedule['afternoon']['start'] ?? null);
+   $ae = parseDateTime($today_schedule['afternoon']['end']   ?? null);
 
-    // 2) Sinon, chercher la prochaine ouverture dans $ordered_days 
-    foreach ($ordered_days as $day_en => $day_fr) {
-        if ($day_en === $current_day) {
-            continue;
-        }
-        if (!empty($schedules[$day_en]) && is_array($schedules[$day_en])) {
-            $next_opening = format_hour($schedules[$day_en]['morning']['start'] ?? '');
-            if ($next_opening) {
-                return [
-                    'status' => 'later',
-                    'hour'   => $next_opening
-                ];
-            }
-        }
-    }
+   $nowDT = parseDateTime($now);
+   $midnight = (new DateTime('today', new DateTimeZone('Europe/Paris')))->setTime(0, 0);
 
-    // 3) Si on ne trouve rien => fermé
-    return [
-        'status' => 'closed',
-        'hour'   => ''
-    ];
+   // (00:00 → morning_start) OU (morning_end → afternoon_start)
+   if ($ms && $nowDT >= $midnight && $nowDT < $ms) {
+       // plus tard => ouvre au matin
+       return [
+           'status' => 'later',
+           'hour'   => format_hour($today_schedule['morning']['start'] ?? '')
+       ];
+   }
+   if ($me && $as && $nowDT >= $me && $nowDT < $as) {
+       // plus tard => ouvre à l'après-midi
+       return [
+           'status' => 'later',
+           'hour'   => format_hour($today_schedule['afternoon']['start'] ?? '')
+       ];
+   }
+
+   // (après afternoon_end)
+   if ($ae && $nowDT >= $ae) {
+       $next_opening = find_next_day_opening($schedules, $ordered_days, $current_day);
+       return [
+           'status' => 'tomorrow',
+           'hour'   => $next_opening
+       ];
+   }
+
+   // si pas de pause => [morning_start, afternoon_end]
+   // sinon [morning_start, morning_end] ou [afternoon_start, afternoon_end]
+   $no_pause = (empty($today_schedule['morning']['end']) && empty($today_schedule['afternoon']['start']));
+   if ($no_pause && $ms && $ae) {
+       if ($nowDT >= $ms && $nowDT < $ae) {
+           return [
+               'status' => 'open',
+               'hour'   => format_hour($today_schedule['afternoon']['end'] ?? '')
+           ];
+       }
+   }
+
+   // sinon on check matin
+   if ($ms && $me && $nowDT >= $ms && $nowDT < $me) {
+       return [
+           'status' => 'open',
+           'hour'   => format_hour($today_schedule['morning']['end'] ?? '')
+       ];
+   }
+   // check après-midi
+   if ($as && $ae && $nowDT >= $as && $nowDT < $ae) {
+       return [
+           'status' => 'open',
+           'hour'   => format_hour($today_schedule['afternoon']['end'] ?? '')
+       ];
+   }
+
+   // 6) Sinon => closed
+   return [
+       'status' => 'closed',
+       'hour'   => ''
+   ];
 }
 
 /**
- * Génère un message selon le statut ('open', 'later', 'closed')
- * 
- * @param array $scheduleInfo  Ex : ['status'=>'open','hour'=>'19:00']
- * @return string HTML
+ * Cherche la prochaine ouverture le jour suivant (ou +), en parcourant $ordered_days
  */
-function render_resume_message($scheduleInfo)
+function find_next_day_opening(array $schedules, array $ordered_days, string $current_day)
+{
+    $found_current = false;
+
+    foreach ($ordered_days as $day_en => $day_fr) {
+        if (!$found_current) {
+            if ($day_en === $current_day) {
+                $found_current = true;
+            }
+            continue;
+        }
+        if (!empty($schedules[$day_en]['morning']['start'])) {
+            return format_hour($schedules[$day_en]['morning']['start']);
+        }
+    }
+    return '';
+}
+
+
+/**
+ * Génère un message personnalisé selon le statut
+ */
+function render_resume_message(array $scheduleInfo)
 {
     $status = $scheduleInfo['status'];
     $hour   = $scheduleInfo['hour'];
@@ -198,10 +236,16 @@ function render_resume_message($scheduleInfo)
 
         case 'later':
             return "
-                <span class='schedules__status'>Ouvre demain</span>
-                <span class='schedules__label'> à </span>
+                <span class='schedules__status'>Ouvre à</span>
                 <span class='schedules__time'>{$hour}</span>
             ";
+
+        case 'tomorrow':
+                return "
+                    <span class='schedules__status'>Ouvre demain</span>
+                    <span class='schedules__label'> à </span>
+                    <span class='schedules__time'>{$hour}</span>
+                ";
 
         default:
         case 'closed':
@@ -212,17 +256,9 @@ function render_resume_message($scheduleInfo)
 }
 
 /**
- * Génère la liste des horaires + le résumé (ouvert / fermé...) au-dessus
- *
- * @param string $template       "mall", "shop", "mall_short", "shop_short"
- * @param string $resume_message Le texte affiché comme résumé (HTML)
- * @param array  $ordered_days   Jours ordonnés
- * @param string $current_day    Jour actuel en anglais
- * @param array  $schedules      Tableau associatif des horaires
- *
- * @return string HTML
+ * Génère la liste des horaires + le résumé au-dessus
  */
-function render_schedules($template, $resume_message, $ordered_days, $current_day, $schedules)
+function render_schedules(string $template, string $resume_message, array $ordered_days, string $current_day, array $schedules)
 {
     setlocale(LC_TIME, 'fr_FR.UTF-8');
 
@@ -292,7 +328,7 @@ function render_schedules($template, $resume_message, $ordered_days, $current_da
  * - mall_short : horaires du centre commercial (juste le message)
  * - shop_short : horaires d’une boutique (juste le message)
  */
-function display_schedules($atts)
+function display_schedules(array $atts)
 {
     $template = $atts['template'] ?? 'mall';
     $shop_id  = get_the_ID();
@@ -311,6 +347,7 @@ function display_schedules($atts)
     }
 
     $schedules = get_opening_hours($is_mall, $shop_id);
+    
     if (!$schedules || !is_array($schedules)) {
         return "<p>Aucun horaire disponible</p>";
     }
