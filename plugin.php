@@ -21,5 +21,5 @@ if (!function_exists('get_field')) {
 require_once __DIR__ . '/includes/schedules.php';
 require_once __DIR__ . '/includes/offer-shop.php';
 
-new MallSchedules();
+new Schedules();
 new OfferShop();

@@ -1,6 +1,6 @@
 <?php
 
-class MallSchedules
+class Schedules
 {
     public function __construct()
     {
