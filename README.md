@@ -38,10 +38,12 @@ Utilisez le shortcode `[schedules]` avec l'attribut `template` pour choisir le m
 
 **Exemples :**
 
+```
 [schedules template="mall"]
 [schedules template="mall_short"]
 [schedules template="shop"]
 [schedules template="shop_short"]
+```
 
 ### Affichage de la boutique associée à l'offre
 
@@ -49,8 +51,9 @@ Utilisez le shortcode `[offer_shop]` pour afficher les informations de la boutiq
 
 **Exemple :**
 
+```
 [offer_shop]
-
+```
 
 ## Structure des fichiers
 
