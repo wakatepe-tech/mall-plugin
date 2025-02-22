@@ -1,9 +1,11 @@
 <?php
 /**
  * Plugin Name: Mall Settings
- * Description: Un plugin personnalisé pour afficher les horaires d'ouverture.
+ * Description: Un plugin personnalisé pour afficher les horaires d'ouverture et les offres promotionnels
  * Version: 1.4.0
  * Author: Placeloop
+ * Author URI: https://placeloop.com/
+ * Text Domain: placeloop
  * Requires at least: 6.7.2
  * Requires PHP: 8.2
  */
