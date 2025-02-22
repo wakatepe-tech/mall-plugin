@@ -42,7 +42,7 @@ class OfferShop
     public function enqueueStyles(): void
     {
         wp_enqueue_style(
-            'mall-schedules',
+            'mall-settings',
             plugin_dir_url(dirname(__FILE__)) . 'css/offerShop.css',
             []
         );

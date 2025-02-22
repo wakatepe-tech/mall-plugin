@@ -295,7 +295,7 @@ class Schedules
     public function enqueueStyles(): void
     {
         wp_enqueue_style(
-            'mall-schedules',
+            'mall-settings',
             plugin_dir_url(dirname(__FILE__)) . 'css/schedules.css',
             []
         );
