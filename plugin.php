@@ -51,23 +51,6 @@ function get_opening_hours(bool $is_mall, int $shop_id): array
 }
 
 /**
- * Fonction pour récupérer le jour actuel
- */
-function get_current_day(): string
-{
-    $day = get_now_datetime();
-    return strtolower($day->format('l'));
-}
-
-/**
- * Fonction pour récupérer l'heure actuelle
- */
-function get_current_time(): string
-{
-    return get_now_datetime()->format('H:i');
-}
-
-/**
  * Obtenir la liste des jours de la semaine (avec aujourd'hui en premier)
  */
 function get_ordered_days(): array
@@ -82,7 +65,7 @@ function get_ordered_days(): array
         'sunday'    => 'Dimanche'
     ];
 
-    $current_day = get_current_day();
+    $current_day = strtolower(get_now_datetime()->format('l'));
     $keys        = array_keys($days);
     $current_pos = array_search($current_day, $keys);
 
@@ -96,7 +79,7 @@ function get_ordered_days(): array
  * Convertit "H:i" en DateTime d'aujourd'hui (Europe/Paris)
  * Gère le cas "00:00" => minuit du jour suivant
  */
-function parseDateTime(string $hour): ?DateTime
+function parseDateTime(?string $hour): ?DateTime
 {
     $today = get_today_datetime();
     if (!empty($hour)) {
@@ -352,8 +335,8 @@ function display_schedules(array $atts): string
         return "<p>Aucun horaire disponible</p>";
     }
 
-    $current_day    = get_current_day();
-    $now            = get_current_time();
+    $current_day    = strtolower(get_now_datetime()->format('l'));
+    $now            = get_now_datetime()->format('H:i');
     $ordered_days   = get_ordered_days();
     $statusInfo     = get_schedule_status($schedules, $ordered_days, $current_day, $now);
     $resume_message = render_resume_message($statusInfo);
