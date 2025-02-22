@@ -226,10 +226,6 @@ function render_schedules($template, $resume_message, $ordered_days, $current_da
 {
     setlocale(LC_TIME, 'fr_FR.UTF-8');
 
-    if ($template === 'mall_short' || $template === 'shop_short') {
-        return "<span class='message'>{$resume_message}</span>";
-    }
-
     if (!in_array($template, ['mall', 'shop'], true)) {
         return '<p>Template inconnu</p>';
     }
@@ -325,6 +321,10 @@ function display_schedules($atts)
 
     $statusInfo     = get_schedule_status($schedules, $ordered_days, $current_day, $now);
     $resume_message = render_resume_message($statusInfo);
+
+    if ($template === 'mall_short' || $template === 'shop_short') {
+        return "<span>{$resume_message}</span>";
+    }
 
     return render_schedules($template, $resume_message, $ordered_days, $current_day, $schedules);
 }
