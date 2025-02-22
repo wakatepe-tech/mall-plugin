@@ -5,6 +5,7 @@ class OfferShop
     public function __construct()
     {
         add_shortcode('offer_shop', [$this, 'displayOfferShop']);
+        add_action('wp_enqueue_scripts', [$this, 'enqueueStyles']);
     }
 
     public function displayOfferShop(): string
@@ -36,5 +37,14 @@ class OfferShop
         }
 
         return '';
+    }
+
+    public function enqueueStyles(): void
+    {
+        wp_enqueue_style(
+            'mall-schedules',
+            plugin_dir_url(dirname(__FILE__)) . 'css/offerShop.css',
+            []
+        );
     }
 }

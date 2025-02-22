@@ -1,0 +1,23 @@
+.offerShop {
+    display: flex;
+    justify-content: flex-start;
+    gap: 20px;
+}
+
+.offerShop__image {
+    width: 30%
+}
+
+.offerShop__content {
+    flex-direction: column;
+    align-content: center;
+    align-items: center;
+}
+
+.offerShop__name {
+    font-weight: 600;
+    color: var( --e-global-color-primary );
+}
+.offerShop__offer {
+    color: var( --e-global-color-primary );
+}

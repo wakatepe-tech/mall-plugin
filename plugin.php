@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Mall Settings
- * Description: Un plugin personnalisé pour afficher les horaires d'ouverture en POO.
+ * Description: Un plugin personnalisé pour afficher les horaires d'ouverture.
  * Version: 1.4.0
  * Author: Placeloop
  * Requires at least: 6.7.2
@@ -19,7 +19,7 @@ if (!function_exists('get_field')) {
 }
 
 require_once __DIR__ . '/includes/schedules.php';
-require_once __DIR__ . '/includes/offer-shop.php';
+require_once __DIR__ . '/includes/offerShop.php';
 
 new Schedules();
 new OfferShop();
