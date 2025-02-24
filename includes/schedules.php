@@ -84,7 +84,14 @@ class Schedules
         }
 
         $today_schedule = $schedules[$current_day] ?? null;
-        if (!$today_schedule || !is_array($today_schedule)) {
+
+        if (
+            !is_array($today_schedule) ||
+            (
+                empty(array_filter($today_schedule['morning'])) &&
+                empty(array_filter($today_schedule['afternoon']))
+            )
+        ) {
             $next_opening = $this->findNextDayOpening($schedules, $ordered_days, $current_day);
             return ['status' => 'tomorrow', 'hour' => $next_opening ?: ''];
         }
